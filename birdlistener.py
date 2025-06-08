@@ -1,8 +1,11 @@
 import logging
 import queue
 import threading
+import tempfile
+import os
 import sounddevice as sd
 import numpy as np
+import soundfile as sf
 from pathlib import Path
 from birdnet import SpeciesPredictions, predict_species_within_audio_file
 
@@ -11,17 +14,21 @@ logger = logging.getLogger(__name__)
 
 
 class BirdListener:
-    def __init__(self, samplerate=44100, blocksize=1024, channels=1):
-        self.fs = samplerate
-        self.blocksize = blocksize
-        self.channels = channels
-        self.q = queue.Queue()
-        self._running = False
-        self._stream = None
+    def __init__(self):
+        self.fs = 44100  # Sample rate
+        self.channels = 1
+        self.blocksize = 1024
+        self.chunk_seconds = 5
+        self.chunk_samples = self.chunk_seconds * self.fs
 
-    def start(self):
-        self._running = True
-        threading.Thread(target=self._process_audio, daemon=True).start()
+        # Initialize an empty buffer
+        self.audio_buffer = np.zeros((0, self.channels), dtype='float32')
+
+        self._stream = None
+        self._running = False
+        self._queue = queue.Queue()
+
+    def listen(self):
         self._stream = sd.InputStream(
             samplerate=self.fs,
             blocksize=self.blocksize,
@@ -31,28 +38,44 @@ class BirdListener:
         self._stream.start()
         logger.info("Real-time analysis started...")
 
+    def _callback(self, indata, frames, time, status):
+        if status:
+            print(f"Stream status: {status}")
+
+        # Append new data to buffer
+        self.audio_buffer = np.vstack([self.audio_buffer, indata])
+
+        # If buffer exceeds chunk size, trim and trigger analysis
+        if len(self.audio_buffer) >= self.chunk_samples:
+            print("Buffer ready! Analyzing...")
+
+            # Copy buffer to avoid race condition
+            buffer_copy = self.audio_buffer[:self.chunk_samples].copy()
+
+            # Optionally trim the buffer (e.g., for sliding window)
+            self.audio_buffer = self.audio_buffer[int(0.5 * self.chunk_samples):]  # 50% overlap
+
+            # Write to WAV and analyze
+            self._save_and_analyze(buffer_copy)
+
+    def _save_and_analyze(self, audio_data):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmpfile:
+            sf.write(tmpfile.name, audio_data, self.fs)
+            print(f"Saved chunk to {tmpfile.name}")
+
+            # Call BirdNET analysis here (e.g., using birdnetlib or subprocess)
+            # self.analyze_with_birdnet(tmpfile.name)
+
+            # Add filename to queue
+            self._queue.put(tmpfile.name)
+
     def _process_audio(self):
         while self._running:
             try:
-                block = self.q.get(timeout=0.5)
-                self.analyze(block)
+                audio_path = self._queue.get(timeout=100)
+                self.analyze(Path(audio_path))
             except queue.Empty:
                 continue
-
-    def _callback(self, indata, frames, time, status):
-        if status:
-            logger.info(f"Status: {status}")
-        self.q.put(indata.copy())
-
-
-    def analyze(self, audio_block):
-        """Override this for real-time audio analysis."""
-        # Example: RMS energy
-        rms = np.sqrt(np.mean(audio_block**2))
-        logger.info(f"RMS energy: {rms:.5f}")
-
-        # 🔁 Replace this with model inference, etc.
-
 
     def stop(self):
         self._running = False
@@ -61,19 +84,17 @@ class BirdListener:
         print("Real-time analysis stopped.")
 
 
-    def identify(self):
+    def analyze(self, audio_path: Path):
         logger.info("Identifying species...")
-        audio_path = Path("C:\\Users\\baris\\Downloads\\soundscape.wav")
         predictions = SpeciesPredictions(predict_species_within_audio_file(audio_path))
         prediction, confidence = list(predictions[(0.0, 3.0)].items())[0]
         logger.info(f"Predicted '{prediction}' with confidence {confidence:.2f}")
-
-    def notify(self):
-        logger.info("Notifying user... (placeholder)")
+        os.remove(audio_path)  # Clean up here
 
     def run(self):
         logger.info("Starting BirdListener run loop...")
-        # self.start()
-        # self.identify()
-        # self.notify()
+        self._running = True
+        self._thread = threading.Thread(target=self._process_audio, daemon=True)
+        self._thread.start()
+        self.listen()
         logger.info("BirdListener run completed.")

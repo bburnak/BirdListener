@@ -1,5 +1,6 @@
 import argparse
 import logging
+import time
 from utilities import configure_logging
 from birdlistener import BirdListener
 
@@ -20,7 +21,11 @@ def run():
 
     logger.info(f"Parsed arguments: input={args.input}, output={args.output}, audio={args.audio}")
 
-    BirdListener().run()
+    listener = BirdListener()
+    listener.run()
+    print("Press Ctrl+C to stop...")
+    while True:
+        time.sleep(1)
 
 
 if __name__ == '__main__':
