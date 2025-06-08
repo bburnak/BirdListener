@@ -7,8 +7,9 @@ import sounddevice as sd
 import numpy as np
 import soundfile as sf
 from pathlib import Path
+import absl.logging
+absl.logging.set_verbosity(absl.logging.ERROR)
 from birdnet import SpeciesPredictions, predict_species_within_audio_file
-
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class BirdListener:
         self.fs = 44100  # Sample rate
         self.channels = 1
         self.blocksize = 1024
-        self.chunk_seconds = 5
+        self.chunk_seconds = 60
         self.chunk_samples = self.chunk_seconds * self.fs
 
         # Initialize an empty buffer
@@ -42,31 +43,16 @@ class BirdListener:
         if status:
             print(f"Stream status: {status}")
 
-        # Append new data to buffer
         self.audio_buffer = np.vstack([self.audio_buffer, indata])
 
-        # If buffer exceeds chunk size, trim and trigger analysis
         if len(self.audio_buffer) >= self.chunk_samples:
-            print("Buffer ready! Analyzing...")
-
-            # Copy buffer to avoid race condition
             buffer_copy = self.audio_buffer[:self.chunk_samples].copy()
+            self.audio_buffer = self.audio_buffer[int(0.5 * self.chunk_samples):]
+            self._save_chunk_to_queue(buffer_copy)  # fast
 
-            # Optionally trim the buffer (e.g., for sliding window)
-            self.audio_buffer = self.audio_buffer[int(0.5 * self.chunk_samples):]  # 50% overlap
-
-            # Write to WAV and analyze
-            self._save_and_analyze(buffer_copy)
-
-    def _save_and_analyze(self, audio_data):
+    def _save_chunk_to_queue(self, audio_data):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmpfile:
             sf.write(tmpfile.name, audio_data, self.fs)
-            print(f"Saved chunk to {tmpfile.name}")
-
-            # Call BirdNET analysis here (e.g., using birdnetlib or subprocess)
-            # self.analyze_with_birdnet(tmpfile.name)
-
-            # Add filename to queue
             self._queue.put(tmpfile.name)
 
     def _process_audio(self):
