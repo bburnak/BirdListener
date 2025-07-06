@@ -11,6 +11,8 @@ from collections import deque
 import absl.logging
 absl.logging.set_verbosity(absl.logging.ERROR)
 from birdnet import SpeciesPredictions, predict_species_within_audio_file
+from datetime import datetime, timezone
+from detection import BirdDetection
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +24,8 @@ class BirdListener:
         self.blocksize = 1024
         self.chunk_seconds = 15
         self.chunk_samples = self.chunk_seconds * self.fs
+        self.detection_threshold = 0.7
+        self.detections = []
 
         # Initialize an empty buffer
         self.audio_buffer = deque(maxlen=self.chunk_samples)
@@ -73,6 +77,20 @@ class BirdListener:
         self._stream.close()
         logger.info("Real-time analysis stopped.")
 
+    def _append_detection(self,
+                          chunk: tuple,
+                          prediction: str,
+                          confidence: float):
+        logger.info("Saving detection.")
+        self.detections.append(
+            BirdDetection(
+                timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                chunk_interval_sec=chunk,
+                species=prediction,
+                confidence=confidence
+            )
+        )
+
 
     def analyze(self, audio_path: Path):
         logger.info("Identifying species...")
@@ -83,6 +101,13 @@ class BirdListener:
             else:
                 prediction, confidence = next(iter(predictions.items()))
                 logger.info(f"Predicted '{prediction}' with confidence {confidence:.2f}")
+                if confidence > self.detection_threshold:
+                    logger.info("Confidence is greater than detection threshold!")
+                    self._append_detection(
+                        chunk,
+                        prediction,
+                        confidence
+                    )
 
         os.remove(audio_path)  # Clean up here
 
