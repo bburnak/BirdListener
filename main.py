@@ -23,7 +23,7 @@ def run():
 
     listener = BirdListener()
     listener.run()
-    print("Press Ctrl+C to stop...")
+    logger.info("Press Ctrl+C to stop...")
     while True:
         time.sleep(1)
 

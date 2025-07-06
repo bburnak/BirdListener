@@ -7,6 +7,7 @@ import sounddevice as sd
 import numpy as np
 import soundfile as sf
 from pathlib import Path
+from collections import deque
 import absl.logging
 absl.logging.set_verbosity(absl.logging.ERROR)
 from birdnet import SpeciesPredictions, predict_species_within_audio_file
@@ -19,11 +20,12 @@ class BirdListener:
         self.fs = 44100  # Sample rate
         self.channels = 1
         self.blocksize = 1024
-        self.chunk_seconds = 60
+        self.chunk_seconds = 15
         self.chunk_samples = self.chunk_seconds * self.fs
 
         # Initialize an empty buffer
-        self.audio_buffer = np.zeros((0, self.channels), dtype='float32')
+        self.audio_buffer = deque(maxlen=self.chunk_samples)
+
 
         self._stream = None
         self._running = False
@@ -41,14 +43,16 @@ class BirdListener:
 
     def _callback(self, indata, frames, time, status):
         if status:
-            print(f"Stream status: {status}")
+            logger.info(f"Stream status: {status}")
 
-        self.audio_buffer = np.vstack([self.audio_buffer, indata])
+        # Flatten input to mono (indata is shape [frames, channels])
+        self.audio_buffer.extend(indata[:, 0])  # Extract mono channel
 
         if len(self.audio_buffer) >= self.chunk_samples:
-            buffer_copy = self.audio_buffer[:self.chunk_samples].copy()
-            self.audio_buffer = self.audio_buffer[int(0.5 * self.chunk_samples):]
-            self._save_chunk_to_queue(buffer_copy)  # fast
+            # Extract chunk
+            audio_chunk = [self.audio_buffer.popleft() for _ in range(self.chunk_samples)]
+            audio_array = np.array(audio_chunk, dtype='float32').reshape(-1, 1)
+            self._save_chunk_to_queue(audio_array)
 
     def _save_chunk_to_queue(self, audio_data):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmpfile:
@@ -67,14 +71,19 @@ class BirdListener:
         self._running = False
         self._stream.stop()
         self._stream.close()
-        print("Real-time analysis stopped.")
+        logger.info("Real-time analysis stopped.")
 
 
     def analyze(self, audio_path: Path):
         logger.info("Identifying species...")
-        predictions = SpeciesPredictions(predict_species_within_audio_file(audio_path))
-        prediction, confidence = list(predictions[(0.0, 3.0)].items())[0]
-        logger.info(f"Predicted '{prediction}' with confidence {confidence:.2f}")
+        prediction_chunks = SpeciesPredictions(predict_species_within_audio_file(audio_path))
+        for chunk, predictions in prediction_chunks.items():
+            if not predictions:
+                logger.info(f"No prediction returned for the subchunk {chunk}")
+            else:
+                prediction, confidence = next(iter(predictions.items()))
+                logger.info(f"Predicted '{prediction}' with confidence {confidence:.2f}")
+
         os.remove(audio_path)  # Clean up here
 
     def run(self):
