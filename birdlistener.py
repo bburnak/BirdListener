@@ -29,7 +29,7 @@ class BirdListener:
         self.fs = 44100  # Sample rate
         self.channels = 1
         self.blocksize = 1024
-        self.chunk_seconds = 15
+        self.chunk_seconds = 180
         self.chunk_samples = self.chunk_seconds * self.fs
         self.detection_threshold = 0.7
         self.audio_input_device = audio_input_device
@@ -172,41 +172,52 @@ class BirdListener:
             return
 
         detected_in_chunk = False
-        for chunk_interval, predictions_for_chunk in prediction_chunks.items():
-            # Filter predictions based on confidence threshold
-            strong_predictions = {
-                species: confidence
-                for species, confidence in predictions_for_chunk.items()
-                if confidence >= self.detection_threshold
-            }
+        for chunk_interval, chunk_predictions in prediction_chunks.items():
+            if not chunk_predictions:
+                logger.info(f"No prediction returned for chunk interval {chunk_interval}")
+            else:
+                prediction_species, prediction_confidence = next(iter(chunk_predictions.items()))
+                logger.info(f"Predicted '{prediction_species}' with confidence {prediction_confidence:.2f}")
+                if prediction_confidence > self.detection_threshold:
+                    logger.info("Confidence is greater than detection threshold!")
 
-            if strong_predictions:
-                # Get the top prediction from the strong ones
-                prediction_species, prediction_confidence = max(
-                    strong_predictions.items(),
-                    key=lambda item: item[1]
-                )
+                    # Create a BirdDetection object
+                    detection_obj = BirdDetection(
+                        timestamp_utc=datetime.now(timezone.utc).isoformat(),  # Current UTC time
+                        chunk_interval_sec=chunk_interval,  # Tuple (start_sec, end_sec)
+                        species=prediction_species,
+                        confidence=prediction_confidence
+                    )
 
-                # Create a BirdDetection object
-                detection_obj = BirdDetection(
-                    timestamp_utc=datetime.now(timezone.utc).isoformat(),  # Current UTC time
-                    chunk_interval_sec=chunk_interval,  # Tuple (start_sec, end_sec)
-                    species=prediction_species,
-                    confidence=prediction_confidence
-                )
-
-                # Put the BirdDetection object into the database write queue
-                # This is a non-blocking operation.
-                self._db_write_queue.put(detection_obj)
-
-                logger.info(f"Predicted '{prediction_species}' with confidence {prediction_confidence:.2f} "
-                            f"for subchunk {chunk_interval[0]:.1f}-{chunk_interval[1]:.1f}s in {audio_path.name}")
-                detected_in_chunk = True
+                    # Put the BirdDetection object into the database write queue
+                    # This is a non-blocking operation.
+                    self._db_write_queue.put(detection_obj)
+                    detected_in_chunk = True
 
         if not detected_in_chunk:
             logger.info(f"No strong predictions found for audio chunk {audio_path.name}.")
 
         os.remove(audio_path)  # Clean up the temporary audio file after analysis
+
+    # def analyze(self, audio_path: Path):
+    #     logger.info("Identifying species...")
+    #     prediction_chunks = SpeciesPredictions(predict_species_within_audio_file(audio_path))
+    #     for chunk, predictions in prediction_chunks.items():
+    #         if not predictions:
+    #             logger.info(f"No prediction returned for the subchunk {chunk}")
+    #         else:
+    #             prediction, confidence = next(iter(predictions.items()))
+    #             logger.info(f"Predicted '{prediction}' with confidence {confidence:.2f}")
+    #             if confidence > self.detection_threshold:
+    #                 logger.info("Confidence is greater than detection threshold!")
+    #                 # self._append_detection(
+    #                 #     chunk,
+    #                 #     prediction,
+    #                 #     confidence
+    #                 # )
+    #
+    #     os.remove(audio_path)  # Clean up here
+
 
     def run(self):
         """
