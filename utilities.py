@@ -1,4 +1,5 @@
 import logging
+import json
 from pathlib import Path
 
 
@@ -39,3 +40,13 @@ def configure_logging(output_dir: str = None):
         pass
 
     logger.info(f"Logging configured. Logs will be written to: {log_file_path}")
+
+
+def get_config(path: Path) -> dict:
+    if not path.exists():
+        logging.warning(f"Config file not found. Using default configurations.")
+        path=Path.cwd() / "config" / "config.json"
+
+    with open(path, "r") as f:
+        data = json.load(f)
+    return data

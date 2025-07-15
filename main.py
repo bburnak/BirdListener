@@ -3,7 +3,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from utilities import configure_logging
+import utilities
 from birdlistener import BirdListener
 
 logger = logging.getLogger(__name__)
@@ -44,13 +44,29 @@ def main():
         help='Specify the input audio device ID. Use `python -m sounddevice` to list devices.'
     )
 
+    # Database name
+    parser.add_argument(
+        '-d', '--database',
+        type=str,
+        default="bird_detections",
+        help="Specify database to record statistically significant bird detections."
+    )
+
+    # Config name
+    parser.add_argument(
+        '-c', '--configuration',
+        type=str,
+        default="config",
+        help="Specify the name of the config file in the input folder. Useful when switching between multiple config files."
+    )
+
     args = parser.parse_args()
 
     # --- Step 1: Configure Logging ---
     # The output directory from argparse is passed directly to configure_logging.
     # configure_logging handles creating the directory and setting up file/console handlers.
     try:
-        configure_logging(output_dir=args.output)
+        utilities.configure_logging(output_dir=args.output)
     except Exception as e:
         # If logging itself fails, print to stderr and exit
         print(f"CRITICAL ERROR: Failed to configure logging in directory '{args.output}': {e}", file=sys.stderr)
@@ -61,18 +77,26 @@ def main():
                 f"output='{args.output}', "
                 f"audio_device_id={args.audio}")
 
-    # --- Step 2: Prepare Database File Path ---
+    # --- Step 2: Prepare Database File Path and config file ---
     output_path = Path(args.output)
-    db_file_path = output_path / "bird_detections.db"
+    db_file_path = output_path / (args.database + ".db")
 
     logger.info(f"Database file path will be: {db_file_path}")
+
+    # Now let's configure
+    input_path = Path(args.input)
+    config_path = input_path / (args.configuration + ".json")
+    config = utilities.get_config(config_path)
+
+    logger.info(f"System is configured as follows \n {config}")
 
     # --- Step 3: Instantiate and Run BirdListener ---
     listener = None
     try:
         listener = BirdListener(
             db_file=str(db_file_path),
-            audio_input_device=args.audio
+            config=config,
+            audio_input_device=args.audio,
         )
 
         logger.info("BirdListener initialized. Starting application threads...")
@@ -92,8 +116,8 @@ def main():
 
             except KeyboardInterrupt:
                 logger.info("Ctrl+C detected. Initiating graceful shutdown...")
-                break  # Exit the while loop to trigger the finally block
-            except EOFError:  # Handles Ctrl+D (end-of-file) on some systems
+                break
+            except EOFError:
                 logger.info("EOF detected. Initiating graceful shutdown...")
                 break
             except Exception as e:

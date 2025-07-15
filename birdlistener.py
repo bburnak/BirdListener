@@ -17,21 +17,22 @@ logger = logging.getLogger(__name__)
 
 
 class BirdListener:
-    def __init__(self, db_file: str, audio_input_device: int = None):
+    def __init__(self, db_file: str, config: dict, audio_input_device: int = None):
         """
         Initializes the BirdListener with audio and database configurations.
 
         Args:
             db_file (str): The path to the SQLite database file.
+            config (dict): Configurations.
             audio_input_device (int, optional): The ID of the audio input device
                                                 to use. If None, the default device is used.
         """
-        self.fs = 44100  # Sample rate
-        self.channels = 1
-        self.blocksize = 1024
-        self.chunk_seconds = 180
+        self.fs = config.get("sample_rate", 44100)  # Sample rate
+        self.channels = config.get("channels", 1)
+        self.blocksize = config.get("blocksize", 1024)
+        self.chunk_seconds = config.get("chunk_seconds", 180)
         self.chunk_samples = self.chunk_seconds * self.fs
-        self.detection_threshold = 0.7
+        self.detection_threshold = config.get("detection_threshold", 0.7)
         self.audio_input_device = audio_input_device
 
         # Buffer for accumulating audio data before processing
