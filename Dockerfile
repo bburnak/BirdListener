@@ -4,9 +4,10 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies (like libasound for sounddevice)
+# Install system dependencies (libasound2 for sounddevice + portaudio19-dev for PortAudio)
 RUN apt-get update && apt-get install -y \
     libasound2 \
+    portaudio19-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create working directory
