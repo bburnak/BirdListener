@@ -1,0 +1,7 @@
+version: '3'
+services:
+  bird-listener:
+    image: bird-listener
+    devices:
+      - "/dev/snd:/dev/snd"
+    restart: always

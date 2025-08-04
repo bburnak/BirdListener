@@ -2,6 +2,6 @@
   "sample_rate": 44100,
   "channels": 1,
   "blocksize": 1024,
-  "chunk_seconds": 240,
+  "chunk_seconds": 300,
   "detection_threshold": 0.7
 }
