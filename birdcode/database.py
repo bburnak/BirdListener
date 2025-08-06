@@ -89,7 +89,6 @@ class DatabaseWriter:
                     last_flush_time = datetime.now()
             except Exception as e:
                 logger.error(f"Error in DatabaseWriter loop: {e}")
-                # Consider specific error handling, e.g., if DB connection breaks
 
         # After the loop, write any remaining items in the buffer
         self._write_batch()
