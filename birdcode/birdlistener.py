@@ -10,8 +10,9 @@ from pathlib import Path
 from collections import deque
 from birdnet import SpeciesPredictions, predict_species_within_audio_file
 from datetime import datetime, timezone
-from detection import BirdDetection
-from database import DatabaseWriter
+from birdcode.detection import BirdDetection
+from birdcode.database import DatabaseWriter
+
 
 logger = logging.getLogger(__name__)
 

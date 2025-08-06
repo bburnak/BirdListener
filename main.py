@@ -3,8 +3,8 @@ import logging
 import sys
 import time
 from pathlib import Path
-import utilities
-from birdlistener import BirdListener
+from birdcode import utilities
+from birdcode.birdlistener import BirdListener
 
 logger = logging.getLogger(__name__)
 
