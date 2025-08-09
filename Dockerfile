@@ -19,5 +19,9 @@ COPY . /app
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Run unit tests (will fail the build if tests fail)
+RUN pip install --no-cache-dir pytest \
+    && pytest tests/unit
+
 # Default command
 ENTRYPOINT ["python", "main.py"]
