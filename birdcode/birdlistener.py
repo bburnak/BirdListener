@@ -10,8 +10,9 @@ from pathlib import Path
 from collections import deque
 from birdnet import SpeciesPredictions, predict_species_within_audio_file
 from datetime import datetime, timezone
-from detection import BirdDetection
-from database import DatabaseWriter
+from birdcode.detection import BirdDetection
+from birdcode.database import DatabaseWriter
+
 
 logger = logging.getLogger(__name__)
 
@@ -199,25 +200,6 @@ class BirdListener:
             logger.info(f"No strong predictions found for audio chunk {audio_path.name}.")
 
         os.remove(audio_path)  # Clean up the temporary audio file after analysis
-
-    # def analyze(self, audio_path: Path):
-    #     logger.info("Identifying species...")
-    #     prediction_chunks = SpeciesPredictions(predict_species_within_audio_file(audio_path))
-    #     for chunk, predictions in prediction_chunks.items():
-    #         if not predictions:
-    #             logger.info(f"No prediction returned for the subchunk {chunk}")
-    #         else:
-    #             prediction, confidence = next(iter(predictions.items()))
-    #             logger.info(f"Predicted '{prediction}' with confidence {confidence:.2f}")
-    #             if confidence > self.detection_threshold:
-    #                 logger.info("Confidence is greater than detection threshold!")
-    #                 # self._append_detection(
-    #                 #     chunk,
-    #                 #     prediction,
-    #                 #     confidence
-    #                 # )
-    #
-    #     os.remove(audio_path)  # Clean up here
 
 
     def run(self):
