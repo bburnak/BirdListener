@@ -1,6 +1,9 @@
 # BirdListener
 
-BirdListener is a Python project for detecting and logging bird species from audio data. It is designed to process audio chunks, identify bird species, and store detection results in a structured format. The project is modular, with clear separation between detection logic, database handling, and utility functions.
+BirdListener is a personal project for detecting and logging bird species from audio data. It is designed to process audio chunks, identify bird species, and store detection results in a structured format. The project is modular, with clear separation between detection logic, database handling, and utility functions.
+
+## Why
+The project started with a sudden interest in hearing all kinds of bird songs all day while working at my front porch. Besides my fascination with birds, personal goals before starting included creating a fully containerized software that can operate in third party hardware, namely my Raspberry Pi, as well as familiarizing myself with VS Code. I'm more comfortable with PyCharm due to my previous roles, but I forced myself to use VS Code to test it out.
 
 ## Features
 - Detects bird species from audio data
