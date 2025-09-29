@@ -37,13 +37,15 @@ The project started with a sudden interest in hearing all kinds of bird songs al
 │  Audio Input    │───▶│  BirdListener   │───▶│  Database       │
 │  (Microphone)   │    │  Processing     │    │  Writer         │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │
-                              ▼
-                       ┌─────────────────┐
-                       │  BirdNET        │
-                       │  ML Model       │
+                              │                        ▲
+                              ▼                        │
+                       ┌─────────────────┐             │
+                       │  BirdNET        │─────────────┘
+                       │  ML Model       │ (detection results)
                        └─────────────────┘
 ```
+
+The BirdListener processes audio chunks and sends them to the BirdNET ML model for species identification. When the model detects a bird with sufficient confidence, the results are formatted into BirdDetection objects and queued for database storage.
 
 ## Project Structure
 
