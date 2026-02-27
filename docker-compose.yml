@@ -1,7 +1,14 @@
 version: '3'
 services:
   bird-listener:
+    build: .
     image: bird-listener
     devices:
       - "/dev/snd:/dev/snd"
+    group_add:
+      - audio
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+    command: ["-o", "/app/data", "-i", "/app/config"]
     restart: always
