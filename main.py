@@ -84,8 +84,14 @@ def main():
     logger.info(f"Database file path will be: {db_file_path}")
 
     # Now let's configure
-    input_path = Path(args.input)
-    config_path = input_path / (args.configuration + ".json")
+    if args.input:
+        input_path = Path(args.input)
+        config_path = input_path / (args.configuration + ".json")
+    else:
+        # Default to looking for config in the current working directory's config folder
+        config_path = Path.cwd() / "config" / (args.configuration + ".json")
+        logger.info(f"No input directory specified (-i). Looking for config at: {config_path}")
+
     config = utilities.get_config(config_path)
 
     logger.info(f"System is configured as follows \n {config}")

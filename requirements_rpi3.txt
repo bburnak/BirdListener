@@ -1,0 +1,8 @@
+# Requirements for Raspberry Pi 3 (ARM64, 1 GB RAM)
+# birdnet pulls in most deps (numpy, scipy, librosa, etc.) automatically.
+# We use tflite backend for low memory footprint.
+birdnet==0.2.12
+colorama
+pydub
+sounddevice
+soundfile

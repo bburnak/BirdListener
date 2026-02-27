@@ -7,8 +7,7 @@ import sounddevice as sd
 import numpy as np
 import soundfile as sf
 from pathlib import Path
-from collections import deque
-from birdnet import SpeciesPredictions, predict_species_within_audio_file
+import birdnet
 from datetime import datetime, timezone
 from birdcode.detection import BirdDetection
 from birdcode.database import DatabaseWriter
@@ -36,8 +35,13 @@ class BirdListener:
         self.detection_threshold = config.get("detection_threshold", 0.7)
         self.audio_input_device = audio_input_device
 
-        # Buffer for accumulating audio data before processing
-        self.audio_buffer = deque(maxlen=self.chunk_samples)
+        # Load BirdNET acoustic model ("tf" = TFLite for RPi/low-memory, "pb" = ProtoBuf for GPU)
+        model_backend = config.get("model_backend", "tf")
+        self._model = birdnet.load("acoustic", "2.4", model_backend)
+
+        # Pre-allocated numpy buffer for accumulating audio data (memory-efficient)
+        self.audio_buffer = np.zeros(self.chunk_samples, dtype='float32')
+        self._buffer_pos = 0
 
         self._stream = None
         self._running = False
@@ -77,19 +81,34 @@ class BirdListener:
     def _callback(self, indata, frames, time, status):
         """
         Callback function for the sounddevice input stream.
-        Appends audio data to a buffer and queues chunks for analysis.
+        Writes audio data into a pre-allocated numpy buffer and queues
+        chunks for analysis when full.
         """
         if status:
             logger.info(f"Stream status: {status}")
 
         # Flatten input to mono
-        self.audio_buffer.extend(indata[:, 0])
+        samples = indata[:, 0]
+        n = len(samples)
+        end = self._buffer_pos + n
 
-        # When enough audio data is accumulated, save it to a temp file and queue for analysis
-        if len(self.audio_buffer) >= self.chunk_samples:
-            audio_chunk = [self.audio_buffer.popleft() for _ in range(self.chunk_samples)]
-            audio_array = np.array(audio_chunk, dtype='float32').reshape(-1, 1)
+        if end < self.chunk_samples:
+            # Common path: samples fit in the remaining buffer space
+            self.audio_buffer[self._buffer_pos:end] = samples
+            self._buffer_pos = end
+        else:
+            # Buffer is full — fill remaining space, queue the chunk, start fresh
+            fit = self.chunk_samples - self._buffer_pos
+            self.audio_buffer[self._buffer_pos:] = samples[:fit]
+
+            audio_array = self.audio_buffer.copy().reshape(-1, 1)
             self._save_chunk_to_queue(audio_array)
+
+            # Store any leftover samples from this callback into the reset buffer
+            remainder = n - fit
+            if remainder > 0:
+                self.audio_buffer[:remainder] = samples[fit:]
+            self._buffer_pos = remainder
 
     def _save_chunk_to_queue(self, audio_data: np.ndarray):
         """
@@ -109,7 +128,7 @@ class BirdListener:
         """
         while self._running:
             try:
-                audio_path = self._audio_chunk_queue.get(timeout=100)  # Wait for a chunk with a timeout
+                audio_path = self._audio_chunk_queue.get(timeout=5)  # Wait for a chunk with a timeout
                 self.analyze(Path(audio_path))  # Perform BirdNET analysis
                 self._audio_chunk_queue.task_done()  # Mark task as complete for queue.join()
             except queue.Empty:
@@ -134,13 +153,17 @@ class BirdListener:
             logger.info("Audio stream stopped and closed.")
 
         # 2. Give the audio processing thread a chance to finish current tasks
-        try:
-            # This join ensures any items already put on the queue are processed
-            self._audio_chunk_queue.join(timeout=10)
+        deadline = 10  # seconds to wait for queue to drain
+        import time as _time
+        waited = 0
+        while not self._audio_chunk_queue.empty() and waited < deadline:
+            _time.sleep(0.5)
+            waited += 0.5
+        if self._audio_chunk_queue.empty():
             logger.info("Audio chunk queue processed pending tasks.")
-        except RuntimeError:
+        else:
             logger.warning(
-                "Audio processing queue not empty or already joined on shutdown, some tasks might be unfinished.")
+                "Audio processing queue not empty on shutdown, some tasks might be unfinished.")
 
         # 3. Stop the database writer gracefully
         # This will also ensure any buffered detections are flushed to disk.
@@ -157,6 +180,14 @@ class BirdListener:
 
         logger.info("BirdListener resources released.")
 
+    @staticmethod
+    def _parse_time_to_seconds(time_value):
+        """Parse a time value to float seconds. Handles 'HH:MM:SS.ss' strings and numeric types."""
+        if isinstance(time_value, (int, float, np.floating, np.integer)):
+            return float(time_value)
+        parts = str(time_value).split(':')
+        return float(parts[0]) * 3600 + float(parts[1]) * 60 + float(parts[2])
+
     def analyze(self, audio_path: Path):
         """
         Performs BirdNET analysis on a given audio file and queues detected birds
@@ -164,37 +195,40 @@ class BirdListener:
         """
         logger.info(f"Identifying species in {audio_path.name}...")
         try:
-            # Call BirdNET to get raw predictions
-            predictions_raw = predict_species_within_audio_file(audio_path)
-            # Process raw predictions into SpeciesPredictions object
-            prediction_chunks = SpeciesPredictions(predictions_raw)
+            # Call BirdNET model to get predictions
+            predictions = self._model.predict(
+                audio_path,
+                default_confidence_threshold=0.01,  # Low threshold — we filter ourselves
+            )
+            result_array = predictions.to_structured_array()
         except Exception as e:
             logger.error(f"Error during BirdNET analysis of {audio_path}: {e}", exc_info=True)
             os.remove(audio_path)  # Clean up temp file even on analysis error
             return
 
         detected_in_chunk = False
-        for chunk_interval, chunk_predictions in prediction_chunks.items():
-            if not chunk_predictions:
-                logger.info(f"No prediction returned for chunk interval {chunk_interval}")
-            else:
-                prediction_species, prediction_confidence = next(iter(chunk_predictions.items()))
-                logger.info(f"Predicted '{prediction_species}' with confidence {prediction_confidence:.2f}")
-                if prediction_confidence > self.detection_threshold:
-                    logger.info("Confidence is greater than detection threshold!")
+        for row in result_array:
+            species = str(row['species_name'])
+            confidence = float(row['confidence'])
+            start_sec = self._parse_time_to_seconds(row['start_time'])
+            end_sec = self._parse_time_to_seconds(row['end_time'])
 
-                    # Create a BirdDetection object
-                    detection_obj = BirdDetection(
-                        timestamp_utc=datetime.now(timezone.utc).isoformat(),  # Current UTC time
-                        chunk_interval_sec=chunk_interval,  # Tuple (start_sec, end_sec)
-                        species=prediction_species,
-                        confidence=prediction_confidence
-                    )
+            logger.info(f"Predicted '{species}' with confidence {confidence:.2f}")
+            if confidence > self.detection_threshold:
+                logger.info("Confidence is greater than detection threshold!")
 
-                    # Put the BirdDetection object into the database write queue
-                    # This is a non-blocking operation.
-                    self._db_write_queue.put(detection_obj)
-                    detected_in_chunk = True
+                # Create a BirdDetection object
+                detection_obj = BirdDetection(
+                    timestamp_utc=datetime.now(timezone.utc).isoformat(),  # Current UTC time
+                    chunk_interval_sec=(start_sec, end_sec),  # Tuple (start_sec, end_sec)
+                    species=species,
+                    confidence=confidence
+                )
+
+                # Put the BirdDetection object into the database write queue
+                # This is a non-blocking operation.
+                self._db_write_queue.put(detection_obj)
+                detected_in_chunk = True
 
         if not detected_in_chunk:
             logger.info(f"No strong predictions found for audio chunk {audio_path.name}.")
