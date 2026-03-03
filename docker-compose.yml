@@ -12,3 +12,19 @@ services:
       - ./data:/app/data
     command: ["-o", "/app/data", "-i", "/app/config"]
     restart: always
+
+  bird-dashboard:
+    build: ./dashboard
+    image: bird-dashboard
+    ports:
+      - "7865:7865"
+    volumes:
+      - ./data:/app/data:ro
+      - ./config:/app/config:ro
+    environment:
+      - BIRDLISTENER_DB=/app/data/bird_detections.db
+      - BIRDLISTENER_CONFIG=/app/config/config.json
+      - DASHBOARD_PORT=7865
+    depends_on:
+      - bird-listener
+    restart: always

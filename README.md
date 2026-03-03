@@ -30,6 +30,16 @@ birdcode/
     utilities.py        # Logging setup and config file loading
 config/
     config.json         # Runtime configuration (sample rate, chunk size, threshold)
+dashboard/
+    app.py              # Flask dashboard: API routes + static file serving
+    Dockerfile          # Dashboard container image
+    requirements.txt    # Dashboard Python dependencies (Flask)
+    static/
+        css/style.css   # Custom dashboard styles (Pico CSS via CDN)
+        js/dashboard.js # Tab switching, API calls, DOM rendering, auto-refresh
+        js/charts.js    # Chart.js histogram configs for Daily/Weekly tabs
+    templates/
+        index.html      # Single-page dashboard with 4 tabs
 tests/
     unit/               # Unit tests (pytest)
     integration/        # Integration tests (placeholder)
@@ -197,6 +207,59 @@ This reduces TensorFlow's memory footprint from ~300–500 MB to ~50–100 MB, m
 > **Tip:** Combine the low-memory config with `tflite-runtime` for the best results on constrained hardware. Monitor memory usage with `htop` or `free -h` during operation.
 > Reducing `chunk_seconds` is a last resort — only do it if you're still OOM after switching to `tflite-runtime`.
 
+## Web Dashboard
+
+BirdListener includes a lightweight web dashboard for viewing detections from any browser on your local network. It runs as a separate Flask app that reads the SQLite database in **read-only mode** — it never interferes with the listener.
+
+### Features
+
+| Tab | Description |
+|---|---|
+| **Overview** | Bird cards from the latest analysis chunk — species photo (Wikipedia), common/scientific name, confidence. Auto-refreshes to match your `chunk_seconds` config. |
+| **Daily** | Stacked bar chart of hourly detections for a selected date, with a detail table. |
+| **Weekly** | Stacked bar chart of daily detections for the selected week, plus summary stats. |
+| **Species** | All-time species list with total detections, last seen date, and average confidence. |
+
+Bird images are fetched client-side from the [Wikipedia API](https://en.wikipedia.org/api/rest_v1/) — no API key required.
+
+### Running Standalone (without Docker)
+
+```sh
+cd dashboard
+pip install -r requirements.txt
+```
+
+Start the dashboard, pointing it at your BirdListener database:
+
+**Linux / macOS:**
+```sh
+BIRDLISTENER_DB=../data/bird_detections.db python app.py
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:BIRDLISTENER_DB="../data/bird_detections.db"; python app.py
+```
+
+Then open `http://<your-ip>:7865` in a browser (or `http://localhost:7865` on the same machine).
+
+### Configuration
+
+The dashboard is configured via environment variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `BIRDLISTENER_DB` | `./data/bird_detections.db` | Path to the SQLite database |
+| `BIRDLISTENER_CONFIG` | `./config/config.json` | Path to BirdListener config (used to read `chunk_seconds` for auto-refresh interval) |
+| `DASHBOARD_PORT` | `7865` | Port the dashboard listens on |
+
+### Running Tests
+
+```sh
+pip install flask pytest
+pytest tests/unit/test_dashboard.py
+```
+
 ## Docker Deployment (Raspberry Pi)
 
 ### Build and Run
@@ -206,15 +269,18 @@ docker compose up --build -d
 ```
 
 This will:
-1. Build the container image from the Dockerfile
-2. Mount `./config` (read-only) for configuration
-3. Mount `./data` for persistent database and log storage
-4. Pass through `/dev/snd` for microphone access
+1. Build the BirdListener container from the root Dockerfile
+2. Build the dashboard container from `dashboard/Dockerfile`
+3. Mount `./config` (read-only) for configuration
+4. Mount `./data` for persistent database and log storage
+5. Pass through `/dev/snd` for microphone access
+6. Expose the dashboard at `http://<pi-ip>:7865`
 
 ### View Logs
 
 ```sh
 docker compose logs -f bird-listener
+docker compose logs -f bird-dashboard
 ```
 
 ### Stop
@@ -228,6 +294,7 @@ docker compose down
 - The container needs access to `/dev/snd` for the microphone. The `docker-compose.yml` maps this device and adds the `audio` group.
 - If you encounter permission issues with the microphone, you may need to add `privileged: true` to the service in `docker-compose.yml`.
 - Data (database + logs) is persisted in the `./data` volume mount. For SD card longevity, consider pointing this to an external USB drive or NAS mount.
+- The dashboard mounts `./data` as **read-only** — it can never corrupt the database.
 
 ## SD Card Longevity Tips
 
