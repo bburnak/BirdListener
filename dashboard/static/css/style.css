@@ -1,0 +1,385 @@
+/* =========================================================================
+   BirdListener Dashboard — Custom Styles
+   Built on top of Pico CSS (loaded via CDN)
+   ========================================================================= */
+
+/* --- Color palette (earthy / nature tones) --- */
+:root {
+    --bird-green: #4a7c59;
+    --bird-green-light: #6fa87e;
+    --bird-brown: #8b6f47;
+    --bird-cream: #f7f3ed;
+    --bird-sky: #87CEEB;
+    --bird-accent: #d4a259;
+    --bird-muted: #8a8a8a;
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --card-radius: 12px;
+}
+
+/* --- Global --- */
+body {
+    background: var(--bird-cream);
+}
+
+header.container nav {
+    padding: 0.5rem 0;
+}
+
+.brand {
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+}
+
+.muted {
+    color: var(--bird-muted);
+    font-size: 0.85rem;
+}
+
+footer.container {
+    text-align: center;
+    padding: 1.5rem 0;
+    border-top: 1px solid #e0dbd3;
+    margin-top: 2rem;
+}
+
+/* --- Status indicator --- */
+.status-dot {
+    font-size: 1rem;
+    cursor: default;
+    transition: color 0.3s;
+}
+
+.status-dot.online {
+    color: var(--bird-green);
+}
+
+.status-dot.offline {
+    color: #cc3333;
+}
+
+/* --- Tab Navigation --- */
+.tab-nav {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 2px solid #e0dbd3;
+    margin-bottom: 1.5rem;
+    padding: 0;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--bird-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: -2px;
+}
+
+.tab-btn:hover {
+    color: var(--bird-green);
+}
+
+.tab-btn.active {
+    color: var(--bird-green);
+    border-bottom-color: var(--bird-green);
+}
+
+/* --- Tab Content --- */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.tab-header h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #333;
+}
+
+.tab-header input[type="date"] {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.85rem;
+    border-radius: 8px;
+    max-width: 180px;
+    margin: 0;
+}
+
+/* --- Empty state --- */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--bird-muted);
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+/* --- Bird card grid (Overview tab) --- */
+.bird-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.bird-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.bird-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.bird-card-img {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    background: #e8e2d8;
+    display: block;
+}
+
+.bird-card-img.placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: #c5bfb4;
+    height: 160px;
+    background: #ece8e0;
+}
+
+.bird-card-body {
+    padding: 0.75rem 1rem;
+}
+
+.bird-card-body h3 {
+    margin: 0 0 0.15rem 0;
+    font-size: 1rem;
+    color: #333;
+}
+
+.bird-card-body .scientific {
+    font-style: italic;
+    color: var(--bird-muted);
+    font-size: 0.8rem;
+    margin: 0 0 0.5rem 0;
+}
+
+.bird-card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+}
+
+.confidence-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.confidence-high {
+    background: #d4edda;
+    color: #1a5c2a;
+}
+
+.confidence-mid {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.confidence-low {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* --- Chart container --- */
+.chart-container {
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    min-height: 280px;
+}
+
+/* --- Stats row (Weekly summary) --- */
+.stat-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.stat-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+    padding: 1rem 1.25rem;
+    flex: 1;
+    min-width: 140px;
+    text-align: center;
+}
+
+.stat-card .stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--bird-green);
+    line-height: 1.2;
+}
+
+.stat-card .stat-label {
+    font-size: 0.8rem;
+    color: var(--bird-muted);
+    margin-top: 0.25rem;
+}
+
+/* --- Species grid (Species tab) --- */
+.species-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 0.75rem;
+}
+
+.species-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+    padding: 0.6rem 1rem;
+    transition: transform 0.15s;
+}
+
+.species-row:hover {
+    transform: translateX(3px);
+}
+
+.species-thumb {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #ece8e0;
+    flex-shrink: 0;
+}
+
+.species-thumb.placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: #c5bfb4;
+}
+
+.species-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.species-info h4 {
+    margin: 0;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.species-info .scientific {
+    font-style: italic;
+    color: var(--bird-muted);
+    font-size: 0.75rem;
+    margin: 0;
+}
+
+.species-stats {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.species-stats .count {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--bird-green);
+}
+
+.species-stats .last-seen {
+    font-size: 0.7rem;
+    color: var(--bird-muted);
+}
+
+/* --- Detail table (Daily tab) --- */
+.table-wrap {
+    overflow-x: auto;
+}
+
+.table-wrap table {
+    font-size: 0.85rem;
+}
+
+/* --- Responsive --- */
+@media (max-width: 600px) {
+    .tab-nav {
+        overflow-x: auto;
+    }
+
+    .tab-btn {
+        padding: 0.5rem 0.8rem;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .bird-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+    }
+
+    .bird-card-img, .bird-card-img.placeholder {
+        height: 120px;
+    }
+
+    .species-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-row {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 380px) {
+    .bird-grid {
+        grid-template-columns: 1fr;
+    }
+}

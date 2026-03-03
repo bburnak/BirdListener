@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BirdListener Dashboard</title>
+
+    <!-- Pico CSS — minimal classless CSS framework -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+
+    <!-- Chart.js for histograms -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="container">
+        <nav>
+            <ul>
+                <li><strong class="brand">🐦 BirdListener</strong></li>
+            </ul>
+            <ul>
+                <li id="status-indicator" class="status-dot" title="Checking connection...">●</li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Tab Navigation -->
+    <main class="container">
+        <nav class="tab-nav" role="tablist">
+            <button class="tab-btn active" data-tab="overview" role="tab" aria-selected="true">Overview</button>
+            <button class="tab-btn" data-tab="daily" role="tab" aria-selected="false">Daily</button>
+            <button class="tab-btn" data-tab="weekly" role="tab" aria-selected="false">Weekly</button>
+            <button class="tab-btn" data-tab="species" role="tab" aria-selected="false">Species</button>
+        </nav>
+
+        <!-- ============================================================ -->
+        <!-- OVERVIEW TAB -->
+        <!-- ============================================================ -->
+        <section id="tab-overview" class="tab-content active" role="tabpanel">
+            <div class="tab-header">
+                <h2>Latest Detections</h2>
+                <small id="overview-timestamp" class="muted">—</small>
+            </div>
+
+            <div id="overview-empty" class="empty-state" style="display:none;">
+                <div class="empty-icon">🎧</div>
+                <p>Listening... no detections yet.</p>
+                <small>Detections will appear here after the first analysis cycle completes.</small>
+            </div>
+
+            <div id="overview-grid" class="bird-grid"></div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- DAILY TAB -->
+        <!-- ============================================================ -->
+        <section id="tab-daily" class="tab-content" role="tabpanel">
+            <div class="tab-header">
+                <h2>Daily Activity</h2>
+                <input type="date" id="daily-date-picker" aria-label="Select date">
+            </div>
+
+            <div class="chart-container">
+                <canvas id="daily-chart"></canvas>
+            </div>
+
+            <details>
+                <summary>Detection details</summary>
+                <div class="table-wrap">
+                    <table id="daily-table" role="grid">
+                        <thead>
+                            <tr>
+                                <th>Time (UTC)</th>
+                                <th>Species</th>
+                                <th>Confidence</th>
+                                <th>Window</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </details>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- WEEKLY TAB -->
+        <!-- ============================================================ -->
+        <section id="tab-weekly" class="tab-content" role="tabpanel">
+            <div class="tab-header">
+                <h2>Weekly Activity</h2>
+                <input type="date" id="weekly-date-picker" aria-label="Select date within target week">
+            </div>
+
+            <div id="weekly-range" class="muted" style="margin-bottom: 0.5rem;"></div>
+
+            <div class="chart-container">
+                <canvas id="weekly-chart"></canvas>
+            </div>
+
+            <div id="weekly-summary" class="stat-row"></div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SPECIES TAB -->
+        <!-- ============================================================ -->
+        <section id="tab-species" class="tab-content" role="tabpanel">
+            <div class="tab-header">
+                <h2>All Species</h2>
+                <small id="species-count" class="muted">—</small>
+            </div>
+
+            <div id="species-empty" class="empty-state" style="display:none;">
+                <div class="empty-icon">📋</div>
+                <p>No species recorded yet.</p>
+            </div>
+
+            <div id="species-grid" class="species-grid"></div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="container">
+        <small class="muted">
+            BirdListener Dashboard · Data refreshes automatically ·
+            Images from <a href="https://www.wikipedia.org" target="_blank" rel="noopener">Wikipedia</a>
+        </small>
+    </footer>
+
+    <!-- Application scripts -->
+    <script src="/static/js/charts.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+
+</body>
+</html>
