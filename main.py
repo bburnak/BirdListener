@@ -108,27 +108,30 @@ def main():
         logger.info("BirdListener initialized. Starting application threads...")
         listener.run()
 
-        # --- Step 4: Keep Main Thread Alive and Handle User Input ---
+        # --- Step 4: Keep Main Thread Alive ---
         logger.info("BirdListener is running. Press Ctrl+C to stop.")
-        while listener._running:  # Continue as long as the listener's internal flag is True
+        interactive = sys.stdin is not None and sys.stdin.isatty()
+        while listener._running:
             try:
-                # Provide a clear prompt for the user
-                user_input = input("Enter 'status' for queue info, or Ctrl+C to stop: ").strip().lower()
-                if user_input == 'status':
-                    # Safely check queue sizes (they are thread-safe)
-                    audio_q_size = listener._audio_chunk_queue.qsize()
-                    db_q_size = listener._db_write_queue.qsize()
-                    logger.info(f"Current queue sizes: Audio={audio_q_size}, DB Write={db_q_size}")
+                if interactive:
+                    user_input = input("Enter 'status' for queue info, or Ctrl+C to stop: ").strip().lower()
+                    if user_input == 'status':
+                        audio_q_size = listener._audio_chunk_queue.qsize()
+                        db_q_size = listener._db_write_queue.qsize()
+                        logger.info(f"Current queue sizes: Audio={audio_q_size}, DB Write={db_q_size}")
+                else:
+                    time.sleep(1)
 
             except KeyboardInterrupt:
                 logger.info("Ctrl+C detected. Initiating graceful shutdown...")
                 break
             except EOFError:
-                logger.info("EOF detected. Initiating graceful shutdown...")
-                break
+                # No stdin (e.g., running as a systemd service) — switch to non-interactive
+                logger.info("No interactive terminal detected. Running in background mode.")
+                interactive = False
             except Exception as e:
                 logger.error(f"Error during main loop user input handling: {e}", exc_info=True)
-                time.sleep(1)  # Small pause to prevent busy-looping on errors
+                time.sleep(1)
 
     except Exception as e:
         # Catch any unhandled exceptions from listener.run() or its threads
